@@ -1,0 +1,66 @@
+MANDEL User's Guide
+-------------------
+
+This file explains the MANDEL utility and MANDLSRV service. It contains the
+following sections:
+
+  1.  What is MANDEL?
+  2.  What is MANDLSRV?
+ 
+
+1. What is MANDEL?
+------------------
+
+  MANDEL is a Microsoft (R) Windows (TM) application that draws a
+  mandelbrot picture. The calculations that produce the picture can
+  be done on the local machine, or they can be distributed over a local
+  area network (LAN) if there is at least one server running the MANDLSRV
+  service (see the following section).
+  
+  To produce MANDLE.EXE, change to the MANDEL\CLIENT directory and use
+  the makefile provided. The Windows SDK header files and libraries
+  must be accessible.
+
+  To run MANDEL.EXE, the LAN Manager Workstation service must be started.
+  MANDEL.EXE can then be started using the Windows RUN command.
+
+  To use the zoom facility of MANDEL.EXE, run the application then select
+  the area to be expanded by clicking on a corner of the area with the
+  mouse cursor. Move the cursor to the far corner of the desired area
+  with the mouse key depressed and then release the key. Select the SPECIAL
+  option and then select ZOOM IN. The picture will be redrawn with the
+  selected area expanded. A ZOOM OUT facility has not been implemented.
+  Select SPECIAL and then BACK TO TOP to redraw the initial picture.
+
+
+2. What is MANDLSRV?
+--------------------
+
+  MANDLSRV is a LAN Manager service that speeds up the calculations for
+  the mandelbrot picture. MANDEL.EXE searches for servers running the
+  MANDLSRV service and distributes the calculations between them. Data
+  is passed between the servers and the workstation
+  running MANDEL.EXE via named pipes.
+
+  To produce MANDLSRV.EXE, change to the MANDEL\SERVER directory and use
+  the makefile provided. The MS (R) OS/2 Presentation Manager toolkit or
+  SDK header files and libraries must be accessible.
+
+  To install the MANDLSRV service, the server's LANMAN.INI file must contain
+  the service specifier and service location. This service has no settable
+  parameters. You must add the following line to the LANMAN.INI file:
+
+      [mandlsrv]
+
+  and you must add the following lines in the [services] section of LANMAN.INI:
+
+      [services]
+          mandlsrv = C:\MANDEL\SERVER\MANDLSRV.EXE
+  
+  (This example assumes that you have put MANDLSRV.EXE in the C:\MANDEL\SERVER
+  directory.)
+
+  You can now start the MANDELSRV service using the following command:
+
+      net start mandlesrv
+

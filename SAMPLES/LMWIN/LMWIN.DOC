@@ -1,0 +1,17 @@
+LMWIN User's Guide
+------------------
+
+LMWIN is a Microsoft (R) Windows (TM) 3.0 application which displays
+workstation information. It calls various LAN Manager API functions
+and displays the resultant information on the screen.
+
+To produce LMWIN.EXE, change to the LMWIN directory and use the makefile
+provided. This makefile can be used with NMAKE.EXE or NMK.COM. The file
+LOMEMORY.BAT is provided for the case when there is not enough memory
+available on your system to compile the program using NMAKE or NMK. 
+The Microsoft Windows 3.0 SDK header files and libraries must be
+accessible.
+
+To run LMWIN.EXE the LAN Manager workstation service must be started.
+LMWIN.EXE can then be started using the Windows RUN command.
+

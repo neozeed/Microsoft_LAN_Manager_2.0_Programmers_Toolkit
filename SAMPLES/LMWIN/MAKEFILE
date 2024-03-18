@@ -1,0 +1,68 @@
+# Makefile for LMWIN.EXE
+#
+# Copyright (C) 1990 Microsoft Corporation 
+#
+# To build LMWIN.EXE, type 'nmake [all]' or 'nmk [all]'.
+# To remove the binaries, type 'nmake clean' or 'nmk clean'.
+#
+
+# Pointers to tools used
+
+CL           = cl            # the c compiler
+RC           = rc            # the resource compiler
+LINK         = link          # the linker
+WINSTUB      = winstub.exe   # the DOS stub loader
+
+# Command line flags
+
+MEM_MODEL    = S             # memory model (small)
+WARNING      = 3             # c compiler warning level
+RCFLAGS      = -r            # resource compiler flags
+CFLAGS       = -c -W$(WARNING) -A$(MEM_MODEL) -Gsw -Oas -Zpe
+LINKFLAGS    = /nod          # linker flags
+WIN_LIBS     = $(MEM_MODEL)libcew.lib libw.lib # Windows libraries
+# for C 5.1: WIN_LIBS = $(MEM_MODEL)libcew.lib $(MEM_MODEL)libw.lib
+LAN_LIBS     = netapi.lib    # LAN Manager libraries
+LIBRARIES    = $(WIN_LIBS) $(LAN_LIBS)
+
+# Inference rules
+
+.rc.res:
+             $(RC) $(RCFLAGS) $*.rc
+
+.c.obj:
+             $(CC) $(CFLAGS) $*.c
+
+.obj.exe:
+             $(LINK) $(LINKFLAGS) $*.obj,$*.exe,$*.map,$(LIBRARIES),$*.def
+             $(RC) $*.res
+
+# Targets
+
+all:         lmwin.exe
+
+lmwin.res:   lmwin.rc lmwin.h
+
+lmwin.obj:   lmwin.c lmwin.h
+
+lmwin.exe:   lmwin.obj lmwin.res lmwin.def
+
+lmwin.def:   makefile
+             echo NAME $* > $@
+             echo DESCRIPTION 'sample lanman/windows app' >> $@
+             echo EXETYPE WINDOWS >> $@
+             echo STUB '$(WINSTUB)' >> $@
+             echo CODE PRELOAD MOVEABLE DISCARDABLE >> $@
+             echo DATA PRELOAD MOVEABLE MULTIPLE >> $@
+             echo HEAPSIZE 1024 >> $@
+             echo STACKSIZE 5120 >> $@
+             echo EXPORTS >> $@
+             echo   WndProc @1 >> $@
+             echo   About @2 >> $@
+
+clean:       
+             -del lmwin.def
+             -del lmwin.res
+             -del lmwin.obj
+             -del lmwin.map
+             -del lmwin.exe

@@ -1,0 +1,346 @@
+
+
+DMAKE User Information -- Companion to DMAKE.DOC and INSTALL.DOC
+----------------------
+
+This file contains information useful for DMAKE users. This
+information can be used to improve DMAKE performance, to understand
+DMAKE error messages, and to determine ways to do certain tasks better.
+
+Read DMAKE.DOC and INSTALL.DOC before you read this file. The
+Troubleshooting section of DMAKE.DOC gives preliminary information
+about DMAKE errors.
+
+This file contains the following sections:
+
+    1. Makefile hints
+    2. Additional DMAKE topics
+    3. Understanding and handling error messages
+
+
+
+1. Makefile hints
+-----------------
+
+    a) Multiple targets.
+
+        Having multiple targets in a DMAKE makefile can cause problems.
+
+        In a makefile, a multiple-target dependency block offers a way
+        of expressing build dependencies in a concise way. With NMAKE,
+        you did not have to think twice before providing complex
+        relationships using multiple targets. For example:
+
+            $(OBJS) : header.h
+
+            foo.exe foo.map : $(OBJS)
+                    link $(OBJS), foo, foo;
+
+        Although such constructs are useful, they should be used with care
+        with DMAKE because DMAKE exploits concurrency/parallelism in the
+        build process to improve build speeds.
+
+        Two targets can be built concurrently if they are not dependent on
+        each other. Also it is not be possible to build these concurrently
+        if the same set of commands builds both targets. This is also true
+        for more than two targets.
+
+        The following makefile, when started with no existing targets,
+        results in the problem of the link line to create PMZ.DLL being
+        executed on the local computer and on a slave computer at the same
+        time:
+        
+            .SUFFIXES: .map .sym
+        
+            COPTS= -c -nologo  -G2s -W3 -Zi -Oailt -AL
+            CDLLOPTS= -c -nologo -DPMZ_DLL -G2s -W3 -Zi -Oailt -Aflw
+        
+            .c.obj:
+                cl $(CFLAGS)     $(CDLLOPTS) $*.c
+        
+            .c.cod:
+                cl $(CFLAGS) -Fc $(CDLLOPTS) $*.c
+        
+            .map.sym:
+                mapsym $*
+        
+            PMZOBJ= piece.obj debug.obj file.obj pmz.obj
+        
+        
+            all: pmz.dll pmz.sym
+        
+            pmz.dll pmz.map: pmzobj.lib pmz.res pmz.def
+                link /exe /noi /nod /co /m pmzobj.lib,pmz.dll,pmz,llibcdll\
+                    libh os2,pmz.def;
+                rc pmz.res pmz.dll
+                cvpack -p pmz.dll
+        
+            pmz.res: pmz.rc pmz.ico
+                rc -r $*.rc
+        
+            pmzobj.lib: $(PMZOBJ)
+                if exist pmzobj.lib del pmzobj.lib
+                lib pmzobj.lib $(PMZOBJ);
+        
+            $(PMZOBJ): pmz.h
+
+        
+        The semantics of a makefile are critical in asynchronous builds.
+
+        Consider the following two dependency blocks:
+        
+            1) $(OBJS) : include.h
+
+            2) targ.exe targ.map : $(OBJS)
+                    link $(OBJS), targ.exe, targ.map;
+
+        Both of these dependency blocks have multiple targets that share
+        dependents. The difference is that each target in 1) has a different
+        command by virtue of inference rules, and each target needs one
+        independent invocation of the command. For the second dependency
+        block a single command creates both targets. The building tool has
+        no way of knowing that the same command is producing both targets.
+
+        You can see from the first case that with multiple targets specified
+        it is essential to have a means of executing the commands asynchronously
+        (and concurrently) since the savings brought by multiple compiles is
+        the objective of a concurrent building tool.
+        
+        The second case works with a sequential build tool like NMAKE because
+        the building tool invokes the command for creating TARG.EXE first, and
+        then, when it attempts to build TARG.MAP, it finds TARG.MAP already
+        up-to-date and does not need to execute the command again.
+        
+        The second case fails with a concurrent build tool like DMAKE because
+        the build tool has no way of knowing that the specified command set
+        produces more than one target. The user could have a command that uses
+        $* macros using explicit commands to actually produce only one target.
+        For example:
+        
+            foo.map bar.map : $$(@B).sym
+               mapsym $*
+        
+        This means that in the context of asynchronous builds we must rethink
+        our makefile semantics, or we must recognize where concurrency will
+	impact the build, and then adjust the makefile accordingly.
+
+        An alternative is to change the build syntax by introducing a specifier
+        to tell the build tool that a rule creates more than one target. This
+        is an alternative to avoid, because the makefiles would have to be
+        modified for DMAKE, which makes them unusable with NMAKE.
+        
+        A second alternative is very easy and can be illustrated with the
+        preceding makefile.
+        
+        In the makefile, DMAKE attempts to build PMZ.DLL and PMZ.MAP because
+        the default targets include PMZ.DLL and PMZ.SYM. The multiple-target
+        dependency block that has the problem must be removed.
+        
+        So we replace:
+        
+            pmz.dll pmz.map: pmzobj.lib pmz.res pmz.def
+                link /exe /noi /nod /co /m pmzobj.lib,pmz.dll,pmz,llibcdll\
+                    libh os2,pmz.def;
+                rc pmz.res pmz.dll
+                cvpack -p pmz.dll
+       
+        with:
+        
+            pmz.dll : pmzobj.lib pmz.res pmz.def
+                link /exe /noi /nod /co /m pmzobj.lib,pmz.dll,pmz,llibcdll\
+                    libh os2,pmz.def;
+                rc pmz.res pmz.dll
+                cvpack -p pmz.dll
+        
+            pmz.map : pmz.dll
+        
+        This technique can resolve any kind of concurrency problem. The
+        resultant makefile will work with both NMAKE and DMAKE. All you
+        must do is realize where concurrency does not do what is intended.
+
+
+    b) Dependencies must be accurate.
+
+        NMAKE can handle slight understated dependencies in the makefile.
+        This is the case where a dependency is not stated, but the dependent
+        is created before the target that depends upon it. This may fail with
+        DMAKE as both the target and dependent could be being built at the same
+        time.
+
+        A symptom of this problem is that NMAKE builds a project without any
+        problem but DMAKE does not. The build could fail in two ways. These
+	are the symptoms of the failure:
+
+            -  Attempting to execute a command that is normally executed
+               after certain files are created.
+
+            -  Giving the message "Don't know how to make 'target'".
+
+        When this happens, check for missing dependencies. With asynchronous
+        execution, the dependencies must be correct to ensure precise builds.
+        For example:
+
+            1)  The following makefile has an implied dependency that must
+                be specifically stated for it to work in DMAKE. The makefile
+                deletes the .LIB files in the current directory. It then
+                rebuilds them and copies them to the LIB directory used
+                by the project.
+
+                    dos: fdel a.lib b.lib c.lib fcopy
+
+                    fdel:
+                        -del *.lib
+
+                    a.lib b.lib c.lib: $$(@B)*.obj $$(@B).lrf
+                        lib @$*.lrf
+
+                    fcopy:
+                        -copy *.lib ..\..\..\lib
+
+                The problem is that FCOPY cannot be done unless the .LIB
+                files are already created because 'fcopy' depends upon the
+		libraries. This example works with NMAKE because it creates
+		dependents of 'dos' in a sequential manner, whereas DMAKE
+		attempts to create them all at once.
+
+
+            2)  The following makefile has a dependency implied by the included
+                inference rule. The makefile creates the $(EXE).exe file using
+                the IDFMSG.MSG file, which is to be created using the inference
+                rule listed. The .TXT file is copied from the $(MRIPATH)
+                directory.
+
+                    .txt.msg:
+                        mksmgf $*.txt $*.msg
+
+                    $(EXE).exe : $(EXE).obj $(LIBS) mrifiles idfmsg.msg\
+                            idfmsg.bnd
+                        link $*,$@ /ST:10000, $*.map $(LFLAGS), $(LIBS);
+                        msgbind idfmsg.bnd
+
+                    mrifiles:
+                        copy $(MRIPATH)\idfmsg.txt .
+
+                With NMAKE, the .TXT file is copied into the current directory
+                and the inference rule creates the .MSG file. DMAKE attempts
+                to create IDFMSG.MSG at the same time 'mrifiles' is being
+		created. Usually IDFMSG.TXT would be copied too late, causing
+		DMAKE to exit and give the message that it does not know how
+		to make IDFMSG.MSG. The solution is to correctly list a
+		dependency block to make IDFMSG.MSG depend upon mrifiles.
+
+
+2. Additional DMAKE Topics
+--------------------------
+
+    a) How does DMAKE maintain the build environment?
+
+        The build environment that is used depends upon the environment
+        variables set up for the build. The environment variables have
+        correct paths to access the tools, libraries, and header files.
+        The sources are found using the current directory and the
+        information in the makefile.
+
+        Before any commands are executed at the slave computer, the path
+        environment variables are converted to be relative to that slave
+        computer. The slave computer is connected so that it can access
+        all the master's local drives. It then changes its default drive
+        and path to match those of the master (but with a different drive
+        letter). For example:
+
+            PATH=C:\TOOLS\BINP;\\ICEBERG\TOOLS\BIN;...
+
+        may be converted to
+
+            PATH=Z:\TOOLS\BINP;\\ICEBERG\TOOLS\BIN;...
+
+        where, Z is the drive letter substituted by the slave computer for
+        the master's C drive.
+
+        The slave computer ensures that it can access all drives specified
+        in the environment variables and also all UNC paths.
+
+        When a command is executed by a slave computer the references to
+        drive letters are converted in a similar fashion to the environment
+        variables. The necessary tools are retrieved from the same path or
+        copied over if mentioned in the SyncTool section.
+
+        Thus, the same environment is maintained during the build.
+
+
+    b) Can the built targets differ in any way?
+
+        The targets built remotely by DMAKE are generally identical to
+        those built locally. The targets will be identical because the
+        build environment is essentially the same. The same tools and
+        sources are used. If a tool inserts source path information into
+        the built target, the target can be different because its path
+        may not match for reasons explained in the preceding section.
+
+        Two tools that produce subtly different targets are pwbrmake and
+        the Microsoft C 6.0 compiler with CodeView information:
+
+            i)  pwbrmake
+                This tool creates browser source cache from .SBR files
+                produced by the Microsoft C 6.0 compiler. It adds the
+                drive letter and path of the source files to the .BSC
+                files, causing slight problems when the PWB browser
+                accesses the files.
+
+            ii) Microsoft C 6.0 compiler, CodeView information
+                The .OBJ files with CodeView information do not compare
+                exactly when built locally and remotely because they have
+                drive letters specified in the source paths. For files built
+                remotely, CodeView cannot find the sources and prompts for
+                the path.
+
+    c) What can you do if the spawned program GP faults on the slave computer?
+
+        When a spawned program GP faults in MS OS/2, a hard-error popup
+        is generated. The user must respond before the build can continue.
+        This is fine if the GP fault occurs on a local machine because 
+        there is a user to enter some response. This can be a problem,
+        however, on a slave computer on the network. The slave computer
+        cannot communicate with the master while the popup is present.
+
+        The master computer times out and continues, but the slave computer
+        is unusable. The master then spawns the timed-out program to another
+        slave computer, until all slaves on the net are locked up.
+
+        If the program causing the fault is known you can work around the
+        problem by adding the program to the LocalOnly list.
+
+        There is another solution when using dedicated slave computers.
+	You can add the following line to the slave computer's CONFIG.SYS
+	file:
+
+            Autofail = yes
+	    
+	This disables hard-error popups. Instead, MS (R) OS/2 returns an
+	error code to the program. The disadvantage of this is that all
+	hard-error popups are disabled, which is not wanted in most cases,
+	but is fine for a dedicated slave computer.
+
+
+3. Error Messages
+-----------------
+
+    This section explains the following DMAKE error messages:
+
+    a) ABORT: Can't connect to \\computer\_DMK1C (rc = nn)
+
+        DMAKE could not share your C drive with the slave computer to which
+        it tried to give a job. This indicates a problem in the varaibles
+        in your LANMAN.INI file. You may have reached the limit of MAXUSERS,
+        MAXSHARES, MAXOPENS, MAXOPENSESSIONS, or you may need a greater value
+        for NUMBIGBUF. Check that your server has the ability to support
+        multiple users. DMAKE requires a large number of network resources
+        and server facilities.
+
+    b) ABORT: Can't Connect to \\computer\share (rc = 86)
+
+        The slave computer that sends this message does not have access
+        rights to a computer or shared resource. If you do not use the UNC
+        path specified in the error message in your makefile, check if it
+        is present in any environment variable.
+

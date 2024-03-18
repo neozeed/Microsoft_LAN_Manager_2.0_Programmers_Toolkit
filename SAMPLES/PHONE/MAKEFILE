@@ -1,0 +1,68 @@
+#-------------------------------------------------------------------
+#  PHONE and PBX make file
+#
+#  Copyright (C) 1990 Microsoft Corporation 
+#-------------------------------------------------------------------
+
+# Targets
+
+all:    phone.exe  pbx.exe
+
+#
+# The following commands build PHONE.EXE:
+#
+
+tmpstack.obj: tmpstack.asm
+    masm  tmpstack.asm;
+
+phone2.obj: phone2.c phone.h
+     cl -c -G2sw -W3 -Od -Alfw /MT  /B1 c1l phone2.c
+
+phone.obj : phone.c phone.h
+     cl -c -G2sw  -W3 -Od  -Alfw  /MT   /B1 c1l  phone.c
+
+phone.res : phone.rc phone.h  phone.ico
+     rc -r phone
+
+easyfont.obj: easyfont.c
+     cl -c -G2sw  -Alfw -W3 easyfont.c
+
+phone.exe : phone.obj phone2.obj easyfont.obj phone.def tmpstack.obj phone.res
+     link   phone phone2 tmpstack easyfont, /align:16,, llibcmt+os2+lan, phone
+     rc phone.res
+
+
+#
+#The following commands build PBX.EXE:
+#
+
+pbx.obj      : pbx.c pbx.h mail.h
+               cl /c /MT /Od /W3 pbx.c
+
+router.obj   : router.c pbx.h mail.h
+               cl /c /MT /Od /W3  router.c
+
+perror.obj   : perror.c pbx.h
+              cl /c /MT /Od /W3  perror.c
+
+pbx.exe      : pbx.obj router.obj perror.obj
+               link /NOI  pbx+router+perror,,,lan,pbx;
+
+#
+#The following command deletes all built files:
+#
+
+clean        : 
+               -del phone2.obj
+               -del phone.obj
+               -del phone.res
+               -del phone.map
+               -del easyfont.obj
+               -del phone.exe
+	       -del router.obj
+	       -del perror.obj
+	       -del pbx.obj
+	       -del pbx.exe
+	       -del pbx.map
+
+#The End

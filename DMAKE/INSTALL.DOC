@@ -1,0 +1,52 @@
+DMAKE Installation Guide -- Companion to DMAKE.DOC and USERINFO.DOC
+
+
+DMAKE Quick Installation Procedure
+----------------------------------
+
+    1. Check your LANMAN.INI file.
+        Edit the 'domain' switch to specify the same domain as other DMAKE
+            users. This is the domain that has the maximum number of slave
+            computers and thus the best performance.
+        Check to see if you have share-level security (security = share).
+            The recommended security is share-level. If you use user-level
+            security, see DMAKE.DOC.
+        Make the 6th entry in srvheuristics 4 (srvheuristics = 1111014...).
+            Entries begin with the 0th entry.
+        Check that your server is visible (srvhidden = no).
+        Check that your server services is a standard server
+            (server = services\netsvini.exe). The server must NOT be a
+            Peer server (server = services\netpsini.exe).
+
+    2. Copy DMK.DLL and DMKV.DLL to a directory in the LIBPATH specified 
+        in your CONFIG.SYS. It is recommended that you copy non-system
+	dynamic-link libraries (DLLs) to a separate directory (for example,
+	C:\DLL) so that if you upgrade your version of MS (R) OS/2, non-MS
+	OS/2 DLLs are not deleted. You may have to change the LIBPATH entry
+	in your CONFIG.SYS. If so, you should reboot your computer.
+
+    3. Copy the four executables (DMAKE, MKSLAVE, SLVSTAT, PERFMTR) to a
+        directory in your PATH.
+
+    4. Copy DMAKE.INI to your INIT environment directory. The slave program
+        caches tools used for builds in a directory you specify in your
+        DMAKE.INI file. Decide on a path, and then change 'Path' and
+        'SyncPath' in DMAKE.INI to those values.
+
+    5. Check to see that you have a TMP environment variable set.
+
+At this point, you have finished installing DMAKE.
+
+    Note: Read DMAKE.DOC to learn about DMAKE.
+
+To use DMAKE, execute the following commands (they can be added to
+your STARTUP.CMD file):
+
+    start cpumeter
+    start mkslave
+
+You can run DMAKE instead of NMAKE. Because DMAKE uses the same syntax as
+NMAKE, it can use NMAKE makefiles unchanged. Try a simple makefile and see
+what happens. If you see commands preceded by text between square brackets
+(for example,  [Local 1]), DMAKE is running.
+

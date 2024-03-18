@@ -1,0 +1,13 @@
+;-------------------------------------
+; PHONE.DEF module definition file
+;-------------------------------------
+
+NAME	       PHONE  WINDOWAPI
+
+DESCRIPTION    'Phone Demo: Copyright (C) 1990 Microsoft Corporation'
+PROTMODE
+HEAPSIZE       2048
+STACKSIZE      10000
+EXPORTS        ClientWndProc
+	       AboutDlgProc
+	       CallDlgProc

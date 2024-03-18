@@ -1,0 +1,50 @@
+# Makefile for MANDLSRV.EXE
+#
+# To build MANDLSRV.EXE, type 'nmake [all]'.
+# To remove the binaries, type 'nmake clean'.
+#
+
+.SUFFIXES:	.c .asm .obj .rc .res .exe .map .sym
+
+
+# Inference rules
+
+.c.obj:
+	cl /MT -c -W3 -G2ws -FPc -AL -Fo$*.obj $<
+
+.asm.obj:
+        masm /MX $<;
+
+.map.sym:
+	mapsym $<
+
+.rc.res:
+	$(RC) -r $<
+
+
+
+# Targets
+
+all:    mandlsrv.exe
+
+mandlsrv.exe: server.obj calc.obj utils.obj calcmand.obj
+	link @server.lnk
+        mapsym mandlsrv.map
+
+calcmand.obj: calcmand.asm
+    masm /MX calcmand.asm;
+
+server.obj:	utils.h remote.h calc.h
+
+calc.obj:	calc.h
+
+utils.obj:	utils.h
+
+clean:       
+                -del mandlsrv.exe
+                -del mandlsrv.sym
+                -del mandlsrv.map
+                -del server.obj
+                -del calc.obj
+                -del utils.obj
+

@@ -1,0 +1,5 @@
+server.obj calc.obj utils.obj calcmand.obj
+mandlsrv.exe /noi /map
+mandlsrv.map
+llibcmt  os2 lan /nod /noe
+server.def

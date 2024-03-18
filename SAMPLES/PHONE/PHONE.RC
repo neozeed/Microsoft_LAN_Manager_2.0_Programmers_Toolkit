@@ -1,0 +1,74 @@
+/*----------------------------------
+   PHONE.RC resource script file
+  ----------------------------------*/
+
+#include <os2.h>
+#include "phone.h"
+
+
+POINTER ID_RESOURCE phone.ico
+
+MENU ID_RESOURCE
+     {
+     MENUITEM "~Call",               IDM_CALL,
+     MENUITEM "~Hangup",	     IDM_HANGUP
+     SUBMENU "E~xit",                IDM_TOPEXIT
+          {
+	  MENUITEM "E~xit Phone...\tF3",  IDM_EXIT
+	  MENUITEM "~Resume Phone",	  IDM_RESUME
+	  }
+
+     SUBMENU "~Help",            IDM_HELP, MIS_HELP | MIS_BUTTONSEPARATOR
+          {
+            MENUITEM "~Extended Help",    IDM_INFO
+            MENUITEM "~About",            IDM_ABOUT
+          }
+     }
+ACCELTABLE ID_RESOURCE
+     {
+     VK_F3, IDM_EXIT,   VIRTUALKEY
+     VK_F1, IDM_INFO,   VIRTUALKEY
+     "^A",  IDM_ABOUT
+     }
+
+DLGTEMPLATE IDD_ABOUT
+  {
+  DIALOG "", 0, 32, 32, 200, 88,, FCF_DLGBORDER
+    {
+    CTEXT   "Phone"			       -1, 10, 64, 180,  8
+    ICON    ID_RESOURCE                        -1,  8, 56,   0,  0
+    CTEXT   "LAN Manager PTK Phone Utility"    -1, 10, 42, 180,  8
+    CTEXT   "Copyright (C) 1990 Microsoft Corporation. " -1, 10, 34, 180,  8
+    DEFPUSHBUTTON "OK"                         DID_OK, 80,  8,  40, 16,
+		    WS_GROUP
+    }
+  }
+
+
+DLGTEMPLATE IDD_CALL
+
+{
+    DIALOG "Directory", 0, 32, 32, 200, 100,,
+                        FCF_DLGBORDER | FCF_TITLEBAR
+
+      {
+        CTEXT   "Select a Name"  -1,           0, 90, 200, 8
+        ENTRYFIELD ""           IDD_FILEEDIT,  25, 75, 150, 8,
+                                                ES_AUTOSCROLL | ES_MARGIN
+        LISTBOX  IDD_NAMELIST,                 25, 30 , 150, 40
+        PUSHBUTTON "OK"         DID_OK    ,    25 , 8, 64, 16, WS_GROUP
+        PUSHBUTTON "Cancel"     DID_CANCEL,    120,8, 64, 16, WS_GROUP
+      }
+
+}
+
+HELPSUBTABLE MAIN_MENU
+{
+
+}
+
+
+HELPTABLE MAIN_HELPTABLE
+{
+   HELPITEM   ID_RESOURCE,   MAIN_MENU,   GENERAL_HP
+}

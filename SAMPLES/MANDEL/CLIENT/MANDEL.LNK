@@ -1,0 +1,5 @@
+mandel.obj remote.obj debug.obj calc.obj calcmand.obj
+mandel.exe
+mandel.map /MAP
+mlibcew libw netapi /NOD /NOPACK /ALIGN:16
+mandel.def

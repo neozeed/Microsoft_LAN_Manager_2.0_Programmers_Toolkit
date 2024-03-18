@@ -1,0 +1,53 @@
+# Makefile for MANDEL.EXE
+#
+# To build MANDEL.EXE, type 'nmake [all]'.
+# To remove the binaries, type 'nmake clean'.
+#
+
+RC = rc
+
+CFLAGS = -c -W3 -AM -Gsw -Oas -Zpe
+
+
+# Targets
+
+all: mandel.exe
+
+# Update the resource if necessary
+
+mandel.res: mandel.rc mandel.h
+    $(RC) -r mandel.rc
+
+# Update the object file if necessary
+
+mandel.obj: mandel.c mandel.h remote.h calc.h
+    cl $(CFLAGS) -NTMANDEL_TEXT mandel.c
+
+remote.obj: remote.c remote.h rmprot.h calc.h mandel.h
+    cl $(CFLAGS) -NTREMOTE_TEXT remote.c
+
+debug.obj: debug.c debug.h
+    cl $(CFLAGS) -NTDEBUG_TEXT debug.c
+
+calc.obj: calc.c rmprot.h calc.h
+    cl $(CFLAGS) -NTDEBUG_TEXT calc.c
+
+calcmand.obj: calcmand.asm
+    masm /MX calcmand.asm;
+
+
+# Update the executable file if necessary, and if so, add the resource back in.
+
+mandel.exe: mandel.obj remote.obj debug.obj calc.obj calcmand.obj mandel.def \
+            mandel.res mandel.lnk
+    link @mandel.lnk
+    $(RC) mandel.res
+
+clean:
+            -del mandel.exe
+            -del mandel.obj
+            -del mandel.res
+            -del mandel.map
+            -del calc.obj
+            -del debug.obj
+            -del remote.obj

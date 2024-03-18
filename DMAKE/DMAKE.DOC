@@ -1,0 +1,691 @@
+
+DMAKE.EXE is the Microsoft Distributed Make Utility.
+
+
+This file explains the DMAKE utility. It contains the following sections:
+
+    1.  Introduction
+    2.  Running DMAKE.EXE
+    3.  Running DMAKE.EXE on a server with user-level security
+    4.  Running the slave program
+    5.  Customizing DMAKE.EXE with DMAKE.INI
+    6.  Miscellaneous notes
+    7.  Troubleshooting
+    8.  Interesting observations
+    9.  Terminology
+    10. Files
+
+Information about DMAKE is contained in the following files:
+    DMAKE.DOC    - This file
+    INSTALL.DOC  - A guide to installing DMAKE
+    USERINFO.DOC - Additional DMAKE information
+
+Note:  @ in the first column indicates incomplete features or a known bug.
+
+This information pertains to DMAKE version 1.20.003.
+
+
+1. Introduction
+---------------
+
+    For reasonably complex projects teams consume a large part of
+    development time building their projects. MAKE was the first tool
+    to semiautomate project builds. NMAKE was developed to handle more
+    complex builds, but it still did not solve problems caused by slow
+    builds. DMAKE is the next generation of build helper. It uses idle
+    computers on the local area network (LAN) and speeds up builds using
+    asynchronous compiles.
+
+    DMAKE consists of two main programs, MKSLAVE.EXE (the slave program)
+    and DMAKE.EXE (the master program). The master program must be run on
+    a server. The slave program can be run on either a workstation or a
+    server. The master computer looks for slave computers on the network
+    and dispatches tasks to them.
+
+    To improve the performance of DMAKE, there must have several slave
+    computers on the network.
+
+    If you use DMAKE for your builds, you should run the slave program on
+    your server as well. This allows your server to be used as a slave by
+    another server when your computer has a low level of activity. This
+    cooperation is necessary to make the most of DMAKE on the network.
+
+    SLVSTAT.EXE, a utility provided along with DMAKE, should be run on the
+    server that will run DMAKE. SLVSTAT lists slave computers and gives their
+    status. It lists the possible slave computers your computer can use.
+
+    PERFMETER.EXE should be run along with the slave program to monitor
+    activity on the local computer. A master computer queries PERFMETER
+    on the various slave computers to determine their level of activity,
+    and then uses this information to determine which slave computers will
+    perform part of the build process. Only slave computers with low activity
+    as measured by PERFMETER are sent build commands.
+
+
+
+2. Running DMAKE.EXE
+--------------------
+
+    DMAKE.EXE requires DMK.DLL and DMKV.DLL to be in the LIBPATH.
+
+    To distribute DMAKE commands over the network the [MkSlave] section
+    of DMAKE.INI must contain the following line:
+    
+        Distribute = yes
+	
+    This enables the networking functionality of DMAKE. Otherwise, the
+    networking functionality is not enabled and DMAKE works just like NMAKE.
+
+    DMAKE initialization information can be specified in either DMAKE.INI
+    or TOOLS.INI. A sample DMAKE.INI file is provided with DMAKE.EXE.
+
+        Note: The [nmake] default rules section can only be in TOOLS.INI.
+
+    DMAKE can be run using any version of LAN Manager, but version 1.1
+    or later is recommended.
+
+    The DMAKE server should not be a Peer server. A Peer server allows only
+    one network connection. This is not adequate for DMAKE because DMAKE must
+    be connected to as many slave computers as possible.
+
+    The server should be set to "time critical". Otherwise, the slave
+    computers have lower priority than locally executed jobs. This defeats
+    the purpose of giving jobs to remote computers. To set "time critical",
+    set bit 6 of the server heuristics in LANMAN.INI to 4.
+
+    ;
+    ;                           1
+    ;                 01234567890123456789
+      srvheuristics = 11110141111211001331
+                            ^
+                            |
+                            +--- Set to "4" for time critical
+
+    Currently, it is easier to run DMAKE on a server that has share-level
+    security. Problems with access restrictions can occur when running DMAKE
+    on a server that has user-level security.
+
+    The server should be run with a local disk cache. Turning on lazy write
+    with your disk cache vastly improves DMAKE performance.
+
+
+
+3. Running DMAKE.EXE on a server with user-level security
+---------------------------------------------------------
+
+    To receive notification of new slave computers available on the network,
+    guest users must have access to the \pipe resource. 
+    
+
+    All slave computers must have access to the source directories and the
+    local build tools. Currently, the owner must ensure that slave computers
+    have proper access to the local computer.
+
+
+
+4. Running the slave program
+----------------------------
+
+    The slave program requires DMK.DLL to be in a directory in the LIBPATH.
+
+    There must also be a directory in which the slave computer can make
+    local copies of build tools. Do NOT put anything in this directory.
+    Change the SyncPath and Path settings in the DMAKE.INI file to
+    specify the location of this directory.
+
+    The TMP environment variable on the slave computer must also be set
+    to point to a scratch area.
+
+
+
+5. Customizing DMAKE.EXE with DMAKE.INI
+---------------------------------------
+
+    DMAKE looks for a DMAKE.INI file in the current directory, and, if
+    not found, DMAKE looks in the directory pointed to by your INIT
+    environment variable ($INIT:DMAKE.INI).
+
+    If the DMAKE.INI file is not found, DMAKE uses default values.
+
+    The DMAKE.INI file has various sections, each identified by tags in
+    the syntax of LANMAN.INI. Each section has a list of variables that
+    control the behavior of DMAKE. A semicolon (;) designates that the
+    rest of the line is a comment.
+
+@   DMAKE.INI parsing currently has a bug that causes incorrect parsing if
+@   there are missing spaces on either side of '=' in the entries.
+
+
+    These are the various sections of DMAKE.INI:
+
+    a) [dmake] Section
+    ------------------
+
+        This section controls the basic functionality of DMAKE. It controls
+        the basic elements of a distributed make, the remote computers that
+        actually execute the commands. It contains information about which
+        computers to use and which to avoid. This section also controls which
+        commands are executed in parallel (asynchronously) and which are
+        executed on the local computer.
+
+        The following are the variables in the [dmake] section:
+
+        ExtraDomains
+        ------------
+
+        ExtraDomains lists domains in which to search for slave computers.
+
+        Syntax:  ExtraDomains = list-of-domains
+
+        By default, the master computer searches for slave computers in the
+        domain specified in the LANMAN.INI file. Slave computers are grouped
+        into domains; ordinarily a slave computer should use its local domain.
+        To use slave computers from other domains, specify additional domains
+        in which to search for slave computers.
+
+        Example:  ExtraDomains = lan os2group dogfood dmktest
+
+        HitList
+        -------
+
+        HitList lists computers to which no connection should be made.
+
+        Syntax:  HitList = list-of-computers-to-avoid
+
+        A particular slave computer can cause problems with the build
+        for a number of reasons. For example:
+
+            1. The slave computer doesn't have enough temporary disk space
+               for its builds.
+            2. The slave computer is running a private build and keeps
+               crashing.
+            3. The slave computer doesn't have access to some files required
+               for the build. (Or you don't want the slave computer to have
+               access to the build information). This doesn't cause the build
+               to break, but causes DMAKE to display the message that the
+               remote computer doesn't have access.
+            4. Certain computers on the network are so slow that dispatching
+               jobs to them slows down the build process rather than speeds
+               it up. Some computers simply get so busy that your job does
+               not get enough time slices. Also, certain computers are known
+               to dispatch a lot of work and slow down local development.
+
+        All these problems can be avoided by specifying a HitList. The master
+        computer then does not dispatch jobs to slave computers on the HitList.
+
+        From the slave computer's perspective, a HitList provides a way of
+        avoiding jobs from the listed master computers. It lists computers
+        to which you do not want your slave computer to connect.
+
+        Example:  HitList = pogo myenemy scummy
+
+        LocalOnly
+        ---------
+
+        LocalOnly lists commands that are always executed locally.
+
+        Syntax:  LocalOnly = list-of-commands-to-be-executed-locally
+
+        DMAKE does not dispatch these commands to the slave computer.
+        LocalOnly allows you to control what is executed on the master
+	computer. Certain inherently local commands fall into this
+	category. If you want to execute certain commands on your local
+	computer, include them here. Commands that take next to no time
+	to execute should be included in this section because there is
+	no gain in executing these on a remote slave computer. Or a
+	program could have some hard-coded dependency that makes it
+	impossible to be used remotely (for example, attempting always
+	to read from drive C). Some tools run much slower when run
+	remotely.
+
+        Example:  LocalOnly = cls date dir exit dmake nmake ver verify vol
+
+        LogFile
+        -------
+
+        LogFile specifies the file in which to log usage information.
+
+        Syntax:  LogFile = filename-specification
+
+        The activities of a slave computer can be logged. This can help
+        determine the amount of use and improve the throughput of DMAKE.
+        For example, you could determine if your computer is being used
+        enough to make it worthwile leaving it turned on through the night.
+
+        Example:  LogFile = C:\LOG\DMAKE.LOG
+
+        NoLocals
+        --------
+
+        NoLocals specifies the number of local DMAKE processes.
+
+        Syntax:  NoLocals = number-of-processes-to-execute-locally
+
+        By default, DMAKE uses one process on your local computer to build.
+        This can be changed by specifying the number of local processes to
+        execute in the background. If running on an exceptionally fast
+        computer, the value can be higher than for slower computers. Each
+        local process uses additional resources (average 4 threads of
+        execution), so setting this to a higher value increases the overhead.
+
+        This option is affected by the presence of lazy write.
+
+        It is recommended that you set NoLocals to 1 when you have lazy
+        write; otherwise, set it to 2. Two asynchronous processes give
+        slightly better throughput for systems without lazy write.
+
+@       Setting NoLocals to 0 causes DMAKE to execute all commands remotely,
+@       except for those specified as LOCAL_ONLY. Feel free to experiment
+@       and try out different values to determine the best for your system
+@       and your build.
+
+        The NoLocals value can be set for a particular build by using a
+        /local:N parameter to override the value specified in the DMAKE.INI
+        file. This causes DMAKE to use N local processes (N can be any
+	value from 0 through 8).
+
+        DMAKE can execute one more NoLocal process than the setting for a
+        job that appears in "LocalOnly". If all the local processes are
+        busy compiling and a LocalOnly job appears, it will be executed.
+
+        Example:  NoLocals = 1
+
+        NonPar
+        ------
+
+        NonPar specifies the programs that DMAKE must not duplicate.
+
+        Syntax:  NonPar = list-of-programs-not-executed-in-parallel
+
+        Certain programs have problems when multiple copies are executed
+        at the same time. This can happen because they both use the same
+        resource and there is no mechanism for sharing, or they are
+        ill-designed for being executed in parallel and have inherent
+        problems. For example, certain message-creating programs make
+        temporary files with non-unique names in the current directory,
+        so two copies of the program cannot execute at once. The Library
+        Manager (LIB.EXE) can create problems if two instances attempt an
+        action on the same library.
+
+@       DMAKE should be included in the NonPar list, or multiple instances
+@       of DMAKE will cause sharing of the same resources. DMAKE is not
+@       currently designed to handle recursion.
+
+        Example:  NonPar = lib dmake
+
+        UseList
+        -------
+
+        UseList specifies which computers to accept commands from.
+
+        Syntax:  UseList = list-of-computers-to-use
+
+        By default, a slave computer processes requests from all master
+        computers that issue it commands. Access can be controlled by
+        providing a UseList. If UseList is empty, a slave computer is
+        never accessed. When no UseList entry is provided, the slave
+        computer performs instructions received from any master computer.
+        UseList can be used to stop a slave computer from spending time
+        on jobs from unauthorized computers.
+
+        Example:  UseList = JohnB MarkS MaryW
+
+
+    b) [MkSlave] Section
+    --------------------
+
+        This section controls the operation of the local DMAKE slave
+	program. The following are the variables in the [MkSlave] section:
+
+        Distribute
+        ----------
+
+        Distribute enables or disables networked builds.
+
+        Syntax:  Distribute = [yes | no]
+
+        By default, DMAKE does not distribute processing over the network.
+        When Distribute is set to yes, DMAKE searches for slave computers
+        on the network and uses them.
+
+        Example:  Distribute = yes
+
+        DelTools
+        --------
+
+        DelTools specifies the idle-time period after which the slave
+        program cleans up the tools directory.
+
+        Syntax:  DelTools = time-in-minutes
+
+        By default, the slave computer keeps tools in the ToolCache even
+        when it is idle. MaxCache sets the maximum number of tools to keep.
+        DelTools is an optional variable. When a value is provided, the
+        slave program uses it as the idle-time limit that specifies when
+        to clean up the ToolCache in SyncPath.
+
+        This is useful when the slave computer is being used for other
+        purposes. It avoids cluttering up the slave computer's disk for
+        long. The slave computer cleans up the files in the ToolCache after
+        DelTool minutes. All files in the SyncPath are deleted after DelTool
+        minutes of being idle. The SyncPath directory should be used only by
+        DMAKE.
+
+        Example:  DelTools = 180
+
+        This cleans up SyncPath after the slave computer is idle for 180
+        minutes.
+
+        LocalEnvs
+        ---------
+
+        LocalEnvs lists local environment variables for the slave computer.
+
+        Syntax:  LocalEnvs = list-of-local-environment-variables
+
+        To properly execute commands on the slave computer, certain
+        environment variables must point to local resources. By default,
+        DMAKE uses the master computer's environment settings. LocalEnvs
+        lists the local environment variables to be used by the slave
+        computer. If a variable is listed in LocalEnvs the value from
+        the slave computer is used; otherwise, the variable is set to
+        the same value as on the master computer.
+
+        Example:  LocalEnvs = comspec tmp temp
+
+        MaxCache
+        --------
+
+        MaxCache specifies the size of the tool cache.
+
+        Syntax:  MaxCache = size-of-disk-space-in-kilobytes
+
+        A slave computer caches the tools used for executing commands from
+        the master computer. When the disk space used by the cached tools
+        exceeds MaxCache, the slave computer deletes the least-recently
+        used tool cached. The default size is 2048K.
+
+        Example:  MaxCache = 2048
+
+        SyncPath
+        --------
+
+        SyncPath specifies the location of the tool cache.
+
+        Syntax:  SyncPath = path-specification-for-tool-cache
+
+        The master computer copies tools to be used for the build to
+	the path specified by SyncPath. The slave computers get the
+	tools from SyncPath to carry out tasks given by the master
+	computer. The ToolCache exists at the path specified. This
+	path must be local to the slave computer. The cache directory
+	should not be used by any other program.
+
+        Example:  SyncPath = D:\DMAKE\TOOLS
+
+
+    c) [Passwords] Section
+    ----------------------
+
+        The greatest benefits from DMAKE can be seen in builds that use a
+        substantial number of resources. This section lists password
+        information about resources used in the build. When security is
+        needed, it is recommended that you not use this section.
+
+        Each entry has this form:
+
+            \\server\share password
+
+        Note: Not all passwords are broadcast to the slave computer. Only
+        those actually needed are sent. The slave computer uses passwords
+        in its own local [Passwords] section.
+
+        Why is this broadcast required, and how is this done?
+
+            The passwords are sent to the slave computer in case the slave
+            program needs to access a shared resource to complete the build.
+            It is possible to list the same share more then once.
+
+            When a slave computer attempts to use a non-DMAKE shared
+            resource it will try:
+                - The computer's default password
+                - Any password listed in [passwords] from DMAKE.INI on the
+                    DMAKE side of this connection
+                - Any password listed in [passwords] from DMAKE.INI on the
+                    slave side of this connection
+                - A null-string password
+
+            If this fails, the slave computer takes itself out of your build
+            and sends a message that it couldn't obtain access to the share.
+
+
+    d) [PathMods] Section
+    ---------------------
+
+        This section is used only by the slave program. It contains entries
+        to modify existing path variables. The following is a variable in the
+	[PathMods] section:
+        
+        Path
+        ----
+        
+        Path specifies the location of required utilities.
+
+        Syntax:  Path = path-to-be-prepended
+        
+        The string provided is added to the beginning of the effective
+        path before the slave program spawns tasks, causing the spawned
+        child process to look at the local path before using an inherited
+        one. The advantage is that the tools in Path are used first since
+        they come first in the path.
+
+        Example:  Path = C:\DMAKE\TOOLS;C:\DMAKE
+
+
+    e) [SyncTools] Section
+    ----------------------
+
+        DMAKE uses a tool cache on the slave computer. Some executables
+        need more than one file to run. For example, the Microsoft C Compiler
+        driver (cl.exe) spawns various passes of the compiler (c1.exe, c2.exe,
+        c3.exe), all these use error message files (c1.err, c23.err). If a
+        command references other commands, DMAKE must have a list of these
+        to send to the slave program and also to properly implement tool
+        caching. This section is used to specify such dependencies.
+
+        Each entry lists the tool and other files it references.
+
+        Syntax:  tool = list-of-files-it-references
+
+        The tool to the left of '=' references the list on the right.
+
+        Example:
+            cl = cl.exe c1.exe c2.exe c3.exe c1.err c23.err
+            cl_386 = cl_386.exe c1_386.exe c1_386.err c2_386.exe c3_386.exe
+            link = link.exe linkstub.ovr
+            ilink = ilink.exe link.exe
+            rc = rc.exe rcpp.exe rcpp.err
+
+
+
+6. Miscellaneous notes
+----------------------
+
+    a) The C 5.1 linker has a bug that arises when it is spawned from
+       DMAKE.EXE.  The symptom of this bug is that the linker fails with
+       the message "xxxxx.obj is invalid", where xxxxx is about the 17th
+       object file listed to link. There is nothing wrong with the OBJ file.
+       You can link by either running LINK from the command line or by
+       using NMAKE.
+
+    b) DMAKE defines the macro DMAKE.
+
+    c) DMAKE performs sluggishly if there is no disk cache. It is
+       recommended that HPFS with lazy write cache be used for builds
+       with DMAKE, although it is not essential. MS (R) OS/2 has a read
+       cache by default; the size of the cache should be increased
+       by increasing the DiskCache statement in CONFIG.SYS to 512 (use
+       512K). DMAKE provides better performance when using both HPFS
+       and a larger DiskCache. With HPFS, the IFS statement must be
+       provided with /C:nnnn (up to 2048), and it must use the RUN
+       command to enable the cache.
+
+       Example for FAT disk partition:
+
+           REM ... Provide a larger Read Cache for FAT of size 512K
+           DiskCache = 512
+
+       Example for HPFS disk partition:
+
+           REM ... Install HPFS using a cache of 1024K
+           ifs = C:\OS2\HPFS.IFS /C:1024 /Autocheck:D
+
+           REM ... Start the HPFS Disk Cache with Lazy Write
+           REM     (unless it's the installed default)
+           run = C:\OS2\CACHE.EXE /Lazy:On
+
+       Note: If there are both HPFS and FAT partitions, both of these
+             statements are needed to speed things up.
+
+
+
+7. Troubleshooting
+------------------
+
+     a) If starting DMAKE gives the message
+
+        SYS1804: The system cannot find the file DMKV
+
+        it means that DMK.DLL or DMKV.DLL are not in the LIBPATH.
+        Copy these files to your LIBPATH.
+
+     b) If starting the slave computer produces the message
+     
+        Note: No Syncpath
+
+        it means that DMAKE.INI does not have entries that correspond
+        to SyncPath and Path.
+
+     c) If SLVSTAT echoes lines with
+ 
+        DEBUG>> ...
+
+        it means that the server is probably a Peer server and should be
+        upgraded to a full-fledged server. (When installing LAN Manager
+        2.0, do not choose to be a dedicated server.)
+
+     d) Remember to install any new LAN Manager server as a visable server.
+        If your server is not visible, slave programs cannot see it.
+
+
+
+8. Interesting observations
+---------------------------
+
+     a) DMAKE requires IPC$ to be shared. This is because the slave
+        computers must be able to communicate with the server, and the
+        server must be configured for transactions.
+
+     b) PERFMTR.EXE is not needed for DMAKE or MKSLAVE to execute.
+        Using PERFMTR is a way of communicating the level of CPU
+        use on a slave computer to a DMAKE master dispatching jobs.
+        In the absence of such information, DMAKE assumes that the
+        slave computer has sufficient free CPU cycles to handle jobs
+        dispatched to it. Running PERFMTR on a slave computer not
+        dedicated for such work is advantageous to users and is
+        recommended.
+
+     c) It is not required that you run MKSLAVE.EXE, but if you expect
+        to use other people's computers as slave computers, it is only
+        fair to allow them similar services.
+
+
+
+9. Terminology
+--------------
+
+    HitList - A list of computers known to be problematic. For example,
+        computers that are slow or computers that dump too much load,
+        or simply computers with which you do not want to share. For
+        DMAKE, a HitList is the list of computers to avoid using as
+        slave computers. For MkSlave, a HitList is the list of computers
+        with which to refuse acting as a slave computer.
+
+    Master computer - The computer on which DMAKE.EXE actually executes.
+        A master computer controls the entire sequence of operations.
+        It looks for slave computers on the network and dispatches
+        commands to them for execution.
+
+    Slave computer - A computer on the network that runs MKSLAVE.EXE and
+        that is ready to be used by DMAKE. When DMAKE executes, it looks
+        for slave computers on the network and sends jobs to those that
+        are not busy.
+
+        A slave computer initially waits for a message from a master on the
+        network. When a master needs slave computers it actively tries to find
+        them by broadcasting on the network. A free slave computer responds
+        to this broadcast and may be assigned a task. If a slave computer is
+        assigned a task, it is owned by the master that assigns the task. It
+        can be assigned multiple jobs. After the build is complete, the slave
+        computer is freed again.
+
+        A slave program should preferably run in a windowed screen group
+        (VIO window) with MS OS/2 because the title bar of the window shows
+        the status of the slave computer (for a full-screen group, it is
+        displayed only in the Task Manager list). If the slave computer is
+        unowned, the status is 'slave:idle'. If it is a slave computer for
+        OWNER but has finished a command and is waiting for the next
+        assignment, the status is 'slave:OWNER'. The status displays the
+        name of the executable if it is assigned a task by the master that
+        owns it.
+
+
+    ToolCaching - When DMAKE executes, it sends the actual tools your build
+        process needs to the slave computer, which maintains a set of tools
+        while it is under the control of the master. These tools are retained
+        in a cache for a period of time. To increase DMAKE throughput,
+        subsequent commands first check if the cache has the tools needed
+        and avoids copying the tools.
+
+
+10. Files
+---------
+
+    DMAKE uses these files:
+
+    CACHE.EXE        - A disk caching program. The disk cache should be
+                       running.
+    CONFIG.SYS       - The system configuration file. The DiskCache entry
+                       should be updated to 512. This affects the read cache
+                       used by MS OS/2. If you have less memory, you should
+                       set DiskCache to 256 and increase the value of
+                       NumReqBuf in LANMAN.INI for better performance.
+    DMAKE.EXE        - The Microsoft distributed make executable.
+    $INIT:DMAKE.INI  - The DMAKE configuration file. It contains various
+                       sections that control execution of DMAKE.
+    DMK.DLL
+    DMKV.DLL         - The dynamic-link libraries used by DMAKE and MKSLAVE.
+                       These should be in your LIBPATH.
+    LANMAN.INI       - The configuration file for Microsoft (R) LAN Manager.
+    MKSLAVE.EXE      - The Microsoft distributed make slave program. It runs
+                       on slave computers and executes all remotely dispatched
+                       commands.
+    PERFMTR.EXE      - A performance-measuring program used by DMAKE. A master
+                       computer queries PERFMTR.EXE running on a slave computer
+                       to find how busy that slave computer is. If you do not
+                       want your local computer to be used as a slave computer
+                       when you are actively using it, use PERFMTR because it
+                       accurately communicates CPU use to DMAKE. If CPU use
+                       is >= 30%, the slave computer won't connect for jobs. If
+                       it connects, it cannot disconnect when CPU use increases
+                       to over 30%.
+    REMOTE.CMD       - A utility to execute a command on a remote computer.
+                       Type 'Remote Command Args ...' to cause Command to be
+                       executed on a remote DMAKE slave computer.
+    SLVSTAT.EXE      - A utility that prints the status of various slave
+                       computers that can be used by DMAKE.
+    $INIT:TOOLS.INI  - A configuration file for various local tools. NMAKE
+                       looks for an [nmake] section for user-specified
+                       defaults. A [dmake] section might also be supported
+		       here in a later release.
+
